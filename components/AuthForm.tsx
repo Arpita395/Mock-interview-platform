@@ -18,7 +18,7 @@ const authFormSchema = (type: FormType)=> {
     name: type=== "sign-up" ? z.string().min(3) : z.string().optional(),
     email: z.string().email(),
     password: z.string().min(3),
-})
+    })
 }
 
 
@@ -39,10 +39,11 @@ const AuthForm= ({type}: {type: FormType})=> {
     function onSubmit(values: z.infer<typeof formSchema>) {
         try {
             if(type=== 'sign-up') {
+                console.log("FORM SUBMITTED", values)
                 toast.success("Account created successfully. Please sign in.")
                 router.push('/sign-in')
             } else {
-                toast.success("Sign in successfully. Please sign in.")
+                toast.success("Sign in successfully")
                 router.push('/')
             }
         } catch (error) {
@@ -54,7 +55,7 @@ const AuthForm= ({type}: {type: FormType})=> {
     const isSignIn= type === "sign-in"
 
     return (
-        <div className="card-border lg:min-w-[566]">
+        <div className="card-border lg:min-w-[566px]">
             <div className="flex flex-col gap-6 card py-14 px-10"> 
                 <div className="flex flex-row gap-2 justify-center">
                     <Image src= "/logo.svg" alt= "logo" height= {32} width={38}/>
