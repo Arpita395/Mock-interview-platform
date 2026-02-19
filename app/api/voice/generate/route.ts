@@ -1,9 +1,7 @@
 import { generateObject, generateText } from "ai";
 import {z} from "zod";
-import {google} from "@ai-sdk/google"
 import { getRandomInterviewCover } from "@/lib/utils";
 import { db } from "@/firebase/admin";
-import {openai} from "@ai-sdk/openai"
 import { createOpenAI } from "@ai-sdk/openai";
 
 export async function GET() {
@@ -37,7 +35,6 @@ export async function POST(request: Request) {
         Please return only the questions.
         `
     })
-
 
         const interview= {
             role, type, level,
