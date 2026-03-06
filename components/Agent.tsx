@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef, use } from 'react';
+import { useEffect, useState, useRef} from 'react';
+
 
 declare global {
   interface Window {
@@ -24,7 +25,7 @@ interface SavedMessage {
     content: string
 }
 
-const Agent= ({userName, userId, type}: AgentProps)=> {
+const Agent= ({userName, userId, type, interviewId, questions}: AgentProps)=> {
     const router= useRouter()
     const recognitionRef = useRef<any>(null);
 
@@ -32,6 +33,9 @@ const Agent= ({userName, userId, type}: AgentProps)=> {
     const [callStatus, setCallStatus]= useState<CallStatus>(CallStatus.INACTIVE)
     const [messages, setMessages]= useState<SavedMessage[]>([])
     const [step, setStep] = useState(0);
+
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const questionIndexRef = useRef(0);
 
     const [interviewData, setInterviewData] = useState({
     role: "",
@@ -46,6 +50,7 @@ const Agent= ({userName, userId, type}: AgentProps)=> {
   const speak = (text: string, shouldListen = false) => {
   const synth = window.speechSynthesis;
   const utterance = new SpeechSynthesisUtterance(text);
+
 
   // Add AI message to transcript
   setMessages(prev => [
@@ -102,29 +107,29 @@ const startListening = () => {
   setCallStatus(CallStatus.ACTIVE);
 };
 
-const handleUserSentence = async (sentence: string) => {
-    const res = await fetch("/api/voice/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sentence }),
-    });
+// const handleUserSentence = async (sentence: string) => {
+//     const res = await fetch("/api/voice/parse", {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({ sentence }),
+//     });
 
-    const data = await res.json();
+//     const data = await res.json();
 
-    if (data.success) {
-        setInterviewData(prev => ({
-            ...prev,
-            role: data.data.role || prev.role,
-            type: data.data.type || prev.type,
-            level: data.data.level || prev.level,
-            techstack: data.data.techstack || prev.techstack,
-            amount: data.data.amount || prev.amount
-        }));
+//     if (data.success) {
+//         setInterviewData(prev => ({
+//             ...prev,
+//             role: data.data.role || prev.role,
+//             type: data.data.type || prev.type,
+//             level: data.data.level || prev.level,
+//             techstack: data.data.techstack || prev.techstack,
+//             amount: data.data.amount || prev.amount
+//         }));
 
-    } else {
-        console.log("FULL RESPONSE: ", data);
-    }
-};
+//     } else {
+//         console.log("FULL RESPONSE: ", data);
+//     }
+// };
 
 
   recognition.onresult = (event: any) => {
@@ -132,41 +137,81 @@ const handleUserSentence = async (sentence: string) => {
 
   console.log("User said:", transcript);
 
-  // handleUserSentence(transcript);
+  recognition.stop(); // stop immediately to prevent duplicate triggers
 
   setMessages(prev => [
     ...prev,
     { role: "user", content: transcript }
   ]);
 
-  recognition.stop();
+  // =============================
+  // GENERATE FLOW (DO NOT TOUCH)
+  // =============================
+  if (type === "generate") {
+    setTimeout(() => {
+      setStep(prevStep => {
+        if (prevStep === 1) {
+          setInterviewData(prev => ({ ...prev, role: transcript }));
+          return 2;
+        }
+        if (prevStep === 2) {
+          setInterviewData(prev => ({ ...prev, type: transcript }));
+          return 3;
+        }
+        if (prevStep === 3) {
+          setInterviewData(prev => ({ ...prev, level: transcript }));
+          return 4;
+        }
+        if (prevStep === 4) {
+          setInterviewData(prev => ({ ...prev, techstack: transcript }));
+          return 5;
+        }
+        if (prevStep === 5) {
+          setInterviewData(prev => ({ ...prev, amount: transcript }));
+          return 6;
+        }
+        return prevStep;
+      });
+    }, 300);
+
+    return;
+  }
+
+  // =============================
+  // INTERVIEW FLOW (FIXED)
+  // =============================
+
+  if(type!== "generate") {
+    if(!questions) return 
+  }
+  const nextIndex = questionIndexRef.current + 1;
+
+  if (nextIndex >= questions.length) {
+    finishInterview();
+    return;
+  }
+
+  questionIndexRef.current = nextIndex;  // update ref FIRST
+  setCurrentQuestionIndex(nextIndex);    // update UI
+
+  const acknowledgements = [
+    "Thank you for your response.",
+    "I appreciate the explanation.",
+    "Understood.",
+    "That makes sense."
+  ];
+
+  const randomAck =
+    acknowledgements[Math.floor(Math.random() * acknowledgements.length)];
+  speak(randomAck, false);
 
   setTimeout(() => {
-    setStep(prevStep => {
-      if (prevStep === 1) {
-        setInterviewData(prev => ({ ...prev, role: transcript }));
-        return 2;
-      }
-      if (prevStep === 2) {
-        setInterviewData(prev => ({ ...prev, type: transcript }));
-        return 3;
-      }
-      if (prevStep === 3) {
-        setInterviewData(prev => ({ ...prev, level: transcript }));
-        return 4;
-      }
-      if (prevStep === 4) {
-        setInterviewData(prev => ({ ...prev, techstack: transcript }));
-        return 5;
-      }
-      if (prevStep === 5) {
-        setInterviewData(prev => ({ ...prev, amount: transcript }));
-        return 6;
-      }
-      return prevStep;
-    });
-  }, 300);
+    askInterviewQuestion(nextIndex);
+  }, 1200);
+
+  return
 };
+
 
   recognition.onerror = (event: any) => {
     console.log("Speech error:", event.error);
@@ -236,20 +281,54 @@ const generateInterview = async () => {
   }
 };
 
-// call handlers
-const handleCall = () => {
-  setCallStatus(CallStatus.CONNECTING);
-
+const finishInterview = () => {
   speak(
-    `Hello ${userName}! Let's prepare your interview. I'll ask you a few questions and generate a perfect interview just for you.`,
-    true // ✅ START LISTENING AFTER INTRO
+    "That concludes our interview. Thank you for your time and thoughtful responses. Our team will review your answers and get back to you soon. Have a great day.",
+    false
   );
 
   setTimeout(() => {
-    setStep(1);
-  }, 4000);
+    setCallStatus(CallStatus.FINISHED);
+  }, 5000);
 };
 
+const askInterviewQuestion = (index: number) => {
+  if (!questions || index >= questions.length) {
+    finishInterview();
+    return;
+  }
+
+  const question = questions[index];
+
+  speak(question, true); // speak and then listen
+};
+
+const handleCall = () => {
+  setCallStatus(CallStatus.CONNECTING);
+
+  if (type === "generate") {
+    speak(
+      `Hello ${userName}! Let's prepare your interview. I'll ask you a few questions and generate a perfect interview just for you.`,
+      true
+    );
+
+    setTimeout(() => {
+      setStep(1);
+    }, 4000);
+
+  } else {
+    speak(
+      `Hello ${userName}. Thank you for joining today. We will now begin your interview. Please answer each question clearly.`,
+      false
+    );
+
+    setTimeout(() => {
+      questionIndexRef.current=0
+      setCurrentQuestionIndex(0);
+      askInterviewQuestion(0);
+    }, 2500);
+  }
+};
 
 const handleDisconnect = async () => {
   recognitionRef.current?.stop();
@@ -257,11 +336,31 @@ const handleDisconnect = async () => {
   setCallStatus(CallStatus.FINISHED);
 };
 
+const handleGenerateFeedback= async (messages: SavedMessage[])=> {
+  console.log('Generate feedback here.')
+
+  const {success, id}= {
+    success: true,
+    id: 'feedback-id'
+  }
+
+  if(success && id) {
+    router.push(`/interview/${interviewId}/feedback`)
+  } else {
+    console.log('Error saving feedback')
+    router.push('/')
+  }
+}
+
 
 // redirect when finished
     useEffect(()=> {
       if(callStatus=== CallStatus.FINISHED) {
-        router.push('/')
+        if(type=== 'generate') {
+          router.push('/')
+        } else {
+          handleGenerateFeedback(messages)
+        }
       }
     }, [messages, callStatus, userId])
 
