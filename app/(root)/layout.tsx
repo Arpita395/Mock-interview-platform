@@ -1,8 +1,9 @@
 import Link from "next/link"
 import Image from "next/image"
 import { ReactNode } from "react"
-import { isAuthenticated } from "@/lib/actions/auth.action"
+import { isAuthenticated, logoutUser } from "@/lib/actions/auth.action"
 import { redirect } from "next/navigation"
+import LogoutButton from "@/components/LogoutButton"
 
 const RootLayout= async ({children}: {children: ReactNode})=> {
     const isUserAuthenticated= await isAuthenticated()
@@ -15,8 +16,12 @@ const RootLayout= async ({children}: {children: ReactNode})=> {
                     <Image src= "/logo.svg" alt= "logo" width={38} height= {32} />
                     <h2 className="text-primary-100">PrepWise</h2>
                 </Link>
-            </nav>
 
+                    <div className="ml-auto flex items-center gap-2">
+                        <LogoutButton />
+                    </div>
+                
+            </nav>
             {children}
         </div>
     )
