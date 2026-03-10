@@ -23,7 +23,7 @@ export default function LogoutButton() {
 
             <button
                 onClick={handleLogout}
-                className="text-primary-100 hidden sm:block"
+                className="text-primary-100 hidden sm:block cursor-pointer hover:text-opacity-10 transition duration-200"
             >
                 Logout
             </button>
